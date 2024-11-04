@@ -7,15 +7,11 @@ class Ant {
         this.y = colonyY; // Initial y position (position of the anthill)
         this.angle = Math.random() * 2 * Math.PI; // Random angle for direction
         this.hasFood = false; // Indicates if the ant is carrying food
-        this.speed = 0.01; // Initial speed
-        this.acceleration = 0; // Acceleration rate
+        this.speed = 0.001; // Initial speed
         this.maxSpeed = 0.001; // Maximum speed
     }
 
     update(foodSources, colonyX, colonyY, canvasWidth = 800, canvasHeight = 600) {
-        // Increase speed gradually
-        
-
         // Cap the speed at maxSpeed
         if (this.speed > this.maxSpeed) {
             this.speed = this.maxSpeed;
@@ -67,16 +63,39 @@ class Ant {
 function AntSimulation() {
     const canvasRef = useRef(null); // Reference for the canvas
     const [ants, setAnts] = useState([]); // State for the ants
-    const [foodSources, setFoodSources] = useState([{ x: 400, y: 300 }]); // State for food sources
-    const colonyX = 400; // Fixed x position of the anthill
-    const colonyY = 500; // Fixed y position of the anthill
+    const [foodSources, setFoodSources] = useState(generateRandomFoodSources()); // State for food sources
+    const colonyX = 400; // Center x position of the anthill (800 / 2)
+    const colonyY = 300; // Fixed y position of the anthill (near the bottom of the canvas)
+
+    // Function to generate random food sources with minimum distance
+    function generateRandomFoodSources() {
+        const numFoodSources = Math.floor(Math.random() * 2) + 3; // Random number of food points between 3 and 4
+        const foodPoints = [];
+
+        while (foodPoints.length < numFoodSources) {
+            const foodX = Math.random() * 800; // Random x position
+            const foodY = Math.random() * 600; // Random y position
+
+            // Check if the new food point is at least a minimum distance from existing points
+            const isFarEnough = foodPoints.every(food => {
+                const distance = Math.hypot(foodX - food.x, foodY - food.y);
+                return distance >= 200; // Minimum distance of 50 pixels
+            });
+
+            if (isFarEnough) {
+                foodPoints.push({ x: foodX, y: foodY });
+            }
+        }
+
+        return foodPoints;
+    }
 
     useEffect(() => {
         const interval = setInterval(() => {
             setAnts((prevAnts) => {
                 // Limit the number of ants to a maximum of 200
                 if (prevAnts.length < 200) {
-                    return [...prevAnts, new Ant(colonyX, colonyY)];
+                    return [...prevAnts, new Ant(colonyX, colonyY)]; // Spawn ants at the anthill position
                 }
                 return prevAnts;
             });
