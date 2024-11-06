@@ -1,81 +1,97 @@
-import AntStates from './AntStates';
+import { AntStates } from './AntStates';
 
+// Renderer.js
 class Renderer {
-    constructor(ctx, spriteSheet) {
-        // Store the drawing context and sprite sheet for rendering ants
+    constructor(ctx, spriteSheet, tileWidth, tileHeight, mapTileset) {
         this.ctx = ctx;
-        this.spriteSheet = spriteSheet; // Reference to the sprite sheet image
-        this.frameWidth = 124; // Width of each frame in the sprite sheet (adjust as needed)
-        this.frameHeight = 137; // Height of each frame in the sprite sheet (adjust as needed)
-        this.scaleFactor = 0.25; // Default scaling factor for resizing ants
+        this.spriteSheet = spriteSheet;
+        this.mapTileset = mapTileset;
+        this.frameWidth = 124;
+        this.frameHeight = 137;
+        this.tileWidth = tileWidth;
+        this.tileHeight = tileHeight;
+        this.scaleFactor = 0.25;
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
     }
 
-    // Method to adjust the scale of rendered ants
-    setScale(scale) {
-        this.scaleFactor = scale;
+    drawTile(x, y, tileId) {
+        const tilesetX = (tileId % (this.mapTileset.width / this.tileWidth)) * this.tileWidth;
+        const tilesetY = Math.floor(tileId / (this.mapTileset.width / this.tileWidth)) * this.tileHeight;
+
+        this.offscreenCtx.drawImage(
+            this.mapTileset,
+            tilesetX, tilesetY, this.tileWidth, this.tileHeight, 
+            x, y, this.tileWidth, this.tileHeight
+        );
     }
 
-    // Clears the canvas within the specified width and height
+    drawMap(mapData) {
+        mapData.layers.forEach(layer => {
+            if (layer.type === "tilelayer") {
+                layer.data.forEach((tileId, index) => {
+                    if (tileId !== 0) {
+                        const x = (index % mapData.width) * this.tileWidth;
+                        const y = Math.floor(index / mapData.width) * this.tileHeight;
+                        this.drawTile(x, y, tileId - 1);
+                    }
+                });
+            }
+        });
+    }
+
     clear(width, height) {
         this.ctx.clearRect(0, 0, width, height);
     }
 
-    // Draws an ant at a specified position with a specific state and orientation
     drawAnt(x, y, hasFood, state, frameIndex, angle) {
         let row;
-    
-        // Determine the row in the sprite sheet based on the ant's state
+
         switch (state) {
             case AntStates.DEATH:
-                row = 0; // Row 1 for death
+                row = 0;
                 break;
             case AntStates.IDLE:
-                row = 1; // Row 2 for idle
+                row = 1;
                 break;
             case AntStates.IDLE_FOOD:
-                row = 2; // Row 3 for idle with food
+                row = 2;
                 break;
             case AntStates.WALK:
-                row = 3; // Row 4 for walking
+                row = 3;
                 break;
             case AntStates.WALK_FOOD:
-                row = 4; // Row 5 for walking with food
+                row = 4;
                 break;
             default:
-                row = 1; // Default row if state is unrecognized
+                row = 1;
                 break;
         }
-    
-        // Calculate x-coordinate in the sprite sheet based on frame index
+
         const sx = frameIndex * this.frameWidth;
-        // Calculate y-coordinate based on determined row
         const sy = row * this.frameHeight;
-    
-        // Calculate scaled dimensions for rendering the ant
+
         const scaledWidth = this.frameWidth * this.scaleFactor;
         const scaledHeight = this.frameHeight * this.scaleFactor;
-    
-        // Save the current canvas context state to prevent cumulative transformations
+
         this.ctx.save();
-    
-        // Translate context to the center of the ant's position
         this.ctx.translate(x, y);
-    
-        // Rotation offset to align the sprite correctly with movement direction
-        const rotationOffset = Math.PI / 2; // Adjust this offset based on sprite orientation
+        const rotationOffset = Math.PI / 2;
         this.ctx.rotate(angle + rotationOffset);
-    
-        // Draw the ant's frame from the sprite sheet with scaling and rotation adjustments
         this.ctx.drawImage(
             this.spriteSheet,
-            sx, sy, // Source x and y from sprite sheet
-            this.frameWidth, this.frameHeight, // Source frame dimensions
-            -scaledWidth / 2, -scaledHeight / 2, // Center the image on x and y
-            scaledWidth, scaledHeight // Apply scaled width and height
+            sx, sy,
+            this.frameWidth, this.frameHeight,
+            -scaledWidth / 2, -scaledHeight / 2,
+            scaledWidth, scaledHeight
         );
-    
-        // Restore the canvas context to its original state
         this.ctx.restore();
+    }
+
+    renderMapToCache(mapData) {
+        this.offscreenCanvas.width = mapData.width * this.tileWidth;
+        this.offscreenCanvas.height = mapData.height * this.tileHeight;
+        this.drawMap(mapData);
     }
 }
 

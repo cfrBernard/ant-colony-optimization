@@ -1,77 +1,82 @@
-import AntStates from './AntStates';
+import { AntStates, AntAnimations } from './AntStates';
 
+// Ant.js
 class Ant {
-    constructor(colonyX, colonyY) {
-        // Initialize the ant's position based on the colony's coordinates
-        this.x = colonyX; 
-        this.y = colonyY;
-        // Set a random initial angle for the ant's movement
+    constructor(mapData) {
+        this.mapData = mapData;
         this.angle = Math.random() * 2 * Math.PI;
-        this.hasFood = false; // Initially, the ant does not have food
-        this.speed = 0.5; // Speed of the ant's movement
-        this.state = AntStates.IDLE; // Default state of the ant
-        this.frameIndex = 0; // Index to keep track of the current animation frame
-        // Frame counts for different states to manage animations
-        this.frameCount = {
-            [AntStates.DEATH]: 8,
-            [AntStates.IDLE]: 8,
-            [AntStates.IDLE_FOOD]: 8,
-            [AntStates.WALK]: 8,
-            [AntStates.WALK_FOOD]: 8
-        };
-        this.frameDelay = 5; // Delay between animation frames
-        this.frameTimer = 0; // Timer to manage the delay for frame updates
+        this.hasFood = false;
+        this.state = AntStates.WALK;
+        this.frameIndex = 0;
+        this.frameTimer = 0;
+        this.animation = AntAnimations[this.state];
+        this.spawnAtHome();
     }
 
-    // Method to handle the movement of the ant
-    move() {
-        const maxTurnAngle = Math.PI / 30; // Maximum angle the ant can turn each step
-        const randomTurn = (Math.random() - 0.5) * maxTurnAngle; // Randomize the turn angle
-        
-        // Gradually adjust the angle to avoid abrupt direction changes
-        this.angle += randomTurn;
+    spawnAtHome() {
+        const homeTiles = [];
     
-        // Update the ant's position based on its angle and speed
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
-        // Update the ant's state based on whether it has food
-        this.state = this.hasFood ? AntStates.WALK_FOOD : AntStates.WALK;
-    }
-
-    // Update method to handle the ant's logic and animation
-    update() {
-        // Logic for changing the ant's state
-        if (this.state !== AntStates.DEATH) {
-            if (Math.random() < 0.01) {
-                this.state = AntStates.IDLE; // Randomly switch to the idle state
-            } else if (Math.random() < 0.01) {
-                this.state = AntStates.WALK; // Switch back to walking state
+        const homeLayer = this.mapData.layers.find(layer => layer.name === "Home");
+        if (homeLayer) {
+            for (let y = 0; y < homeLayer.height; y++) {
+                for (let x = 0; x < homeLayer.width; x++) {
+                    const tileId = homeLayer.data[y * homeLayer.width + x];
+                    if (tileId !== 0) {
+                        homeTiles.push({ x, y });
+                    }
+                }
             }
         }
-    
-        // Call move method only if the ant is in WALK or WALK_FOOD state
-        if (this.state === AntStates.WALK || this.state === AntStates.WALK_FOOD) {
-            this.move();
-        }
-    
-        // Manage the animation frame updates
-        this.frameTimer++;
-        // Change the frame index based on the frame delay
-        if (this.frameTimer >= this.frameDelay) {
-            this.frameIndex = (this.frameIndex + 1) % this.frameCount[this.state]; // Loop through frames
-            this.frameTimer = 0; // Reset the timer
+
+        if (homeTiles.length > 0) {
+            const randomIndex = Math.floor(Math.random() * homeTiles.length);
+            const { x, y } = homeTiles[randomIndex];
+            this.x = x * this.mapData.tilewidth;
+            this.y = y * this.mapData.tileheight;
+        } else {
+            console.log("no 'Home' found !");
         }
     }
 
-    // Method to retrieve the current position and state of the ant
+    setState(state) {
+        if (this.state !== state) {
+            this.state = state;
+            this.frameIndex = 0; 
+            this.animation = AntAnimations[this.state];
+            this.frameTimer = 0; 
+        }
+    }
+
+    update() {
+        if (this.state === AntStates.DEATH) {
+            const { frameCount } = this.animation;
+            if (this.frameIndex < frameCount - 1) {
+                this.frameTimer++;
+                if (this.frameTimer >= this.animation.frameDelay) {
+                    this.frameIndex++;
+                    this.frameTimer = 0;
+                }
+            } else {
+                this.frameIndex = frameCount - 1;
+                return;
+            }
+        } else if (this.state !== AntStates.IDLE && this.state !== AntStates.IDLE_FOOD) {
+            this.frameTimer++;
+            if (this.frameTimer >= this.animation.frameDelay) {
+                this.frameIndex = (this.frameIndex + 1) % this.animation.frameCount;
+                this.frameTimer = 0;
+            }
+        }
+    }
+
     getPosition() {
-        return { 
-            x: this.x, 
-            y: this.y, 
-            hasFood: this.hasFood, 
-            state: this.state, 
-            frameIndex: this.frameIndex, 
-            angle: this.angle 
+        return {
+            x: this.x,
+            y: this.y,
+            hasFood: this.hasFood,
+            state: this.state,
+            frameIndex: this.frameIndex,
+            angle: this.angle
         };
     }
 }
