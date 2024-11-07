@@ -1,16 +1,17 @@
-// AntSimulation.js
 import React, { useState, useEffect, useRef } from 'react';
-import Renderer from './Renderer';
+import MapRenderer from './MapRenderer';
+import AntRenderer from './AntRenderer';
 import Ant from './Ant';
 
-const MAX_ANTS = 1;  // Limite du nombre de fourmis
+const MAX_ANTS = 1;
 
 const AntSimulation = () => {
     const canvasRef = useRef(null);
-    const rendererRef = useRef(null);
     const [mapData, setMapData] = useState(null);
     const [spriteSheet, setSpriteSheet] = useState(null);
     const [ants, setAnts] = useState([]);
+    const mapRendererRef = useRef(null);
+    const antRendererRef = useRef(null);
 
     const createGridFromMapData = (mapData) => {
         const grid = Array.from({ length: mapData.height }, () =>
@@ -63,15 +64,17 @@ const AntSimulation = () => {
         mapTileset.src = 'assets/img/tileset/MainLev2.0.png';
 
         mapTileset.onload = () => {
-            rendererRef.current = new Renderer(ctx, spriteSheet, 32, 32, mapTileset);
-            rendererRef.current.renderMapToCache(mapData);
+            mapRendererRef.current = new MapRenderer(ctx, mapTileset, 32, 32);
+            antRendererRef.current = new AntRenderer(ctx, spriteSheet, 124, 137);
 
-            const grid = createGridFromMapData(mapData); // Crée la grille une fois
+            mapRendererRef.current.renderMapToCache(mapData);
+
+            const grid = createGridFromMapData(mapData);
             const initialAnts = [];
             for (let i = 0; i < MAX_ANTS; i++) {
-                initialAnts.push(new Ant(mapData, grid)); // Passe la grille aux fourmis
+                initialAnts.push(new Ant(mapData, grid));
             }
-            setAnts(initialAnts); // Met à jour la liste des fourmis
+            setAnts(initialAnts);
         };
     }, [spriteSheet, mapData]);
 
@@ -79,13 +82,14 @@ const AntSimulation = () => {
         if (!ants.length || !spriteSheet || !mapData) return;
 
         const animate = () => {
-            rendererRef.current.clear(1856, 928);
-            rendererRef.current.ctx.drawImage(rendererRef.current.offscreenCanvas, 0, 0);
+            const ctx = canvasRef.current.getContext('2d');
+
+            ctx.drawImage(mapRendererRef.current.offscreenCanvas, 0, 0);
 
             ants.forEach(ant => {
                 ant.update();
-                const { x, y, hasFood, state, frameIndex } = ant.getPosition();
-                rendererRef.current.drawAnt(x, y, hasFood, state, frameIndex);
+                const { x, y, hasFood, state, frameIndex,} = ant.getPosition();
+                antRendererRef.current.drawAnt(x, y, hasFood, state, frameIndex,);
             });
 
             requestAnimationFrame(animate);
