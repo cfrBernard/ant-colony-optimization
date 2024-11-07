@@ -3,12 +3,42 @@ import React, { useState, useEffect, useRef } from 'react';
 import Renderer from './Renderer';
 import Ant from './Ant';
 
+const MAX_ANTS = 1;  // Limite du nombre de fourmis
+
 const AntSimulation = () => {
     const canvasRef = useRef(null);
     const rendererRef = useRef(null);
     const [mapData, setMapData] = useState(null);
     const [spriteSheet, setSpriteSheet] = useState(null);
     const [ants, setAnts] = useState([]);
+
+    const createGridFromMapData = (mapData) => {
+        const grid = Array.from({ length: mapData.height }, () =>
+            Array.from({ length: mapData.width }, () => ({
+                isWall: false,
+                isFood: false,
+                isHome: false,
+            }))
+        );
+
+        const layers = { Home: 'isHome', Food: 'isFood', Walls: 'isWall' };
+
+        for (const [layerName, property] of Object.entries(layers)) {
+            const layer = mapData.layers.find(layer => layer.name === layerName);
+            if (layer) {
+                for (let y = 0; y < layer.height; y++) {
+                    for (let x = 0; x < layer.width; x++) {
+                        const tileId = layer.data[y * layer.width + x];
+                        if (tileId !== 0) {
+                            grid[y][x][property] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return grid;
+    };
 
     useEffect(() => {
         const img = new Image();
@@ -35,11 +65,13 @@ const AntSimulation = () => {
         mapTileset.onload = () => {
             rendererRef.current = new Renderer(ctx, spriteSheet, 32, 32, mapTileset);
             rendererRef.current.renderMapToCache(mapData);
+
+            const grid = createGridFromMapData(mapData); // Crée la grille une fois
             const initialAnts = [];
-            for (let i = 0; i < 10; i++) {
-                initialAnts.push(new Ant(mapData));  
+            for (let i = 0; i < MAX_ANTS; i++) {
+                initialAnts.push(new Ant(mapData, grid)); // Passe la grille aux fourmis
             }
-            setAnts(initialAnts);
+            setAnts(initialAnts); // Met à jour la liste des fourmis
         };
     }, [spriteSheet, mapData]);
 
